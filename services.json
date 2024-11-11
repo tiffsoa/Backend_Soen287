@@ -1,0 +1,8 @@
+[
+    { "id": 1, "name": "House Cleaning", "company": "AllHomia", "description": "Cleaning and organizing homes", "price": 90 },
+    { "id": 2, "name": "Garden Maintenance", "company": "AllHomia", "description": "Making your garden look pretty and clean", "price": 150 },
+    { "id": 3, "name": "Plumbing", "company": "AllHomia", "description": "Fixing leaks and installing pipes", "price": 60 },
+    { "id": 4, "name": "Lawn Mowing", "company": "AllHomia", "description": "Maintaining lawns and gardens", "price": 50 },
+    { "id": 5, "name": "Deep Cleaning", "company": "AllHomia", "description": "Cleaning every corner of your house", "price": 140 },
+    { "id": 6, "name": "Furniture Installation", "company": "AllHomia", "description": "Transporting and installing your furniture for you", "price": 100 }
+]
