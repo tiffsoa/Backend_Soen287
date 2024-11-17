@@ -6,7 +6,6 @@ const cors = require('cors');
 const app = express();
 const PORT = 4000;
 
-// Middleware
 app.use(bodyParser.json());
 app.use(cors());
 
@@ -19,8 +18,6 @@ const getServices = () => {
 const saveServices = (services) => {
     fs.writeFileSync('./services.json', JSON.stringify(services, null, 2));
 };
-
-// Routes
 
 // Get all services
 app.get('/services', (req, res) => {
@@ -86,7 +83,6 @@ app.delete('/services/:id', (req, res) => {
     }
 });
 
-// Start the server
 app.listen(PORT, () => {
     console.log(`Admin Dashboard Backend is running on http://localhost:${PORT}`);
 });
