@@ -9,14 +9,7 @@ const bodyParser = require('body-parser');
 app.use(bodyParser.json());
 app.use(cors());
 
-// Sample data for services (admin side) and customers (customer dashboard side)
-const services = require('./services.json');
-let customers = [
-    { id: 1, name: 'John Doe', email: 'john@example.com', password: 'password123', services: [1, 2] },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', password: 'password456', services: [2, 3] }
-];
-
-// Utility functions to handle reading and writing to JSON
+// Utility functions to handle reading and writing to JSON files
 const getServices = () => {
     const data = fs.readFileSync('./services.json');
     return JSON.parse(data);
@@ -24,6 +17,15 @@ const getServices = () => {
 
 const saveServices = (services) => {
     fs.writeFileSync('./services.json', JSON.stringify(services, null, 2));
+};
+
+const getCustomers = () => {
+    const data = fs.readFileSync('./customer.json');
+    return JSON.parse(data);
+};
+
+const saveCustomers = (customers) => {
+    fs.writeFileSync('./customer.json', JSON.stringify(customers, null, 2));
 };
 
 // Admin dashboard service routes
@@ -96,13 +98,14 @@ app.delete('/services/:id', (req, res) => {
 
 // Get all services for customer dashboard
 app.get('/customer/services', (req, res) => {
-    const customerServices = getServices();
-    res.json(customerServices);
+    const services = getServices();
+    res.json(services);
 });
 
 // Get a specific customer's services
 app.get('/customer/:id/services', (req, res) => {
     const customerId = parseInt(req.params.id);
+    const customers = getCustomers();
     const customer = customers.find(c => c.id === customerId);
     
     if (!customer) {
@@ -110,7 +113,7 @@ app.get('/customer/:id/services', (req, res) => {
     }
 
     const customerServices = customer.services.map(serviceId => {
-        return services.find(service => service.id === serviceId);
+        return getServices().find(service => service.id === serviceId);
     });
 
     res.json(customerServices);
@@ -119,6 +122,7 @@ app.get('/customer/:id/services', (req, res) => {
 // Add a service to a customer's list (simulate service booking)
 app.post('/customer/:id/services', (req, res) => {
     const customerId = parseInt(req.params.id);
+    const customers = getCustomers();
     const customer = customers.find(c => c.id === customerId);
     
     if (!customer) {
@@ -126,8 +130,11 @@ app.post('/customer/:id/services', (req, res) => {
     }
 
     const serviceId = req.body.serviceId;
+    const services = getServices();
+
     if (services.find(service => service.id === serviceId)) {
         customer.services.push(serviceId);
+        saveCustomers(customers);
         res.status(201).json({ message: 'Service added to customer profile', services: customer.services });
     } else {
         res.status(400).json({ error: 'Service not found' });
@@ -137,6 +144,7 @@ app.post('/customer/:id/services', (req, res) => {
 // Update customer details (e.g., name, email)
 app.put('/customer/:id', (req, res) => {
     const customerId = parseInt(req.params.id);
+    const customers = getCustomers();
     const customer = customers.find(c => c.id === customerId);
     
     if (!customer) {
@@ -149,6 +157,7 @@ app.put('/customer/:id', (req, res) => {
     if (email) customer.email = email;
     if (password) customer.password = password;
 
+    saveCustomers(customers);
     res.json({ message: 'Customer details updated successfully', customer });
 });
 
@@ -165,7 +174,7 @@ app.get('/', (req, res) => {
 
 // Test route for services (send service data as JSON)
 app.get('/services/test', (req, res) => {
-    res.json(services);
+    res.json(getServices());
 });
 
 // Post request test
