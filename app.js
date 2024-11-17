@@ -161,6 +161,46 @@ app.put('/customer/:id', (req, res) => {
     res.json({ message: 'Customer details updated successfully', customer });
 });
 
+// Password Update Route
+app.post('/update-password', (req, res) => {
+    const { customerId, currentPassword, newPassword, confirmPassword } = req.body;
+
+    // Fetch the customer data from the file
+    let customers = getCustomers();
+    let customer = customers.find(c => c.id === customerId);
+
+    if (!customer) {
+        return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    // Check if the current password is correct
+    if (customer.password !== currentPassword) {
+        return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    // Validate new password complexity
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+        return res.status(400).json({
+            error: 'New password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, and one number.'
+        });
+    }
+
+    // Check if new password and confirm password match
+    if (newPassword !== confirmPassword) {
+        return res.status(400).json({ error: 'New password and confirmation do not match.' });
+    }
+
+    // Update the password in customer data
+    customer.password = newPassword;
+
+    // Save the updated customers data
+    saveCustomers(customers);
+
+    // Respond with success
+    res.status(200).json({ message: 'Password updated successfully' });
+});
+
 // Sign out simulation (clear session/cookie)
 app.post('/customer/signout', (req, res) => {
     // Simulate sign out
