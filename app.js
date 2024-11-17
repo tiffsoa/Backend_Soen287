@@ -82,13 +82,13 @@ app.put('/services/:id', (req, res) => {
     }
 });
 
-// Delete a service
+// Delete a service (Simulate cancellation)
 app.delete('/services/:id', (req, res) => {
     const services = getServices();
     const filteredServices = services.filter((s) => s.id !== parseInt(req.params.id));
     if (filteredServices.length !== services.length) {
         saveServices(filteredServices);
-        res.json({ message: 'Service deleted successfully' });
+        res.json({ message: 'Service canceled successfully' });
     } else {
         res.status(404).json({ error: 'Service not found' });
     }
