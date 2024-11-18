@@ -12,21 +12,76 @@ app.use(cors());
 // Utility functions to handle reading and writing to JSON files
 const getServices = () => {
     const data = fs.readFileSync('./services.json');
+    console.log("data", JSON.parse(data))
     return JSON.parse(data);
 };
+
 
 const saveServices = (services) => {
     fs.writeFileSync('./services.json', JSON.stringify(services, null, 2));
 };
+
+const getCompanies = () => {
+    const data = fs.readFileSync('./companies.json');
+    return JSON.parse(data);
+};
+
+const getBookings = () => {
+    const data = fs.readFileSync('./bookings.json');
+    return JSON.parse(data);
+}
 
 const getCustomers = () => {
     const data = fs.readFileSync('./customer.json');
     return JSON.parse(data);
 };
 
+// to save the list of customers (will overwrite the current customers.json so be careful)
 const saveCustomers = (customers) => {
     fs.writeFileSync('./customer.json', JSON.stringify(customers, null, 2));
 };
+
+// to add one customer
+const addCustomer = (customer) => {
+    let customers = getCustomers();
+    customers.push(customer);
+    saveCustomers(customers);
+}
+
+const findCustomerByEmail = (email) => {
+    const customers = getCustomers();
+    return customers.find(customer => customer.email === email);
+};
+
+// Sign up page route
+
+app.post('/signup', (req, res) => {
+    const { lastName, firstName, phone, email, password } = req.body;
+    const customers = getCustomers();
+    console.log(lastName, firstName, phone, email, password)
+
+    if (!email) {
+        return res.status(400).json({error: "Email is required"});  
+    }
+
+    const customer = findCustomerByEmail(email);
+
+    if (customer) {
+        res.status(404).json({error: "Customer already exists"});
+    } else {
+        const newCustomer = {
+            id: customers[customers.length - 1].id + 1,
+            name: firstName + " " + lastName,
+            email: email,
+            password: password,
+            services: []
+        }
+        res.json(newCustomer);
+        addCustomer(newCustomer);
+    }
+});
+
+
 
 // Admin dashboard service routes
 
@@ -51,9 +106,9 @@ app.get('/services/:id', (req, res) => {
 app.post('/services', (req, res) => {
     const services = getServices();
     const newService = {
-        id: services.length + 1,
+        id: services[services.length - 1].id + 1,
         name: req.body.name,
-        company: req.body.company,
+        companyId: req.body.companyId,
         description: req.body.description,
         price: req.body.price,
         date: req.body.date,
@@ -94,9 +149,14 @@ app.delete('/services/:id', (req, res) => {
     }
 });
 
+// get company for customer dashboard
+app.get('/customer/ser')
+
+
 // Customer dashboard routes
 
 // Get all services for customer dashboard
+
 app.get('/customer/services', (req, res) => {
     const services = getServices();
     res.json(services);
@@ -107,14 +167,30 @@ app.get('/customer/:id/services', (req, res) => {
     const customerId = parseInt(req.params.id);
     const customers = getCustomers();
     const customer = customers.find(c => c.id === customerId);
+    const companies = getCompanies();
+    const bookings = getBookings();
     
     if (!customer) {
         return res.status(404).json({ error: 'Customer not found' });
     }
 
     const customerServices = customer.services.map(serviceId => {
-        return getServices().find(service => service.id === serviceId);
-    });
+        const service = getServices().find(service => service.id === serviceId); // Find single matching service
+        if (!service) return null; // Handle case where serviceId doesn't match any service
+    
+        const companyName = companies.find(company => company.id === service.companyId)?.name;
+
+        const date = bookings.find(booking => booking.customerId === customer.id)?.date;
+
+        const time = bookings.find(booking=> booking.customerId === customer.id)?.time;
+    
+        return {
+            service,
+            companyName,
+            date,
+            time
+        };
+    })
 
     res.json(customerServices);
 });
@@ -212,10 +288,6 @@ app.get('/', (req, res) => {
     res.status(200).send("Welcome to the Root URL of the Server");
 });
 
-// Test route for services (send service data as JSON)
-app.get('/services/test', (req, res) => {
-    res.json(getServices());
-});
 
 // Post request test
 app.post('/submit', (req, res) => {
