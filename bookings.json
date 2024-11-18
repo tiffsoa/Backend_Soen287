@@ -1,0 +1,122 @@
+[
+    {
+        "id": 1,
+        "customerId": 1,
+        "email": "johndoe@gmail.com",
+        "phoneNumber": "514-123-4567",
+        "address": "123 Maple Street, Montreal QC",
+        "frequency": "One-time",
+        "date": "2024-12-01",
+        "time": "9:00 AM - Please arrive on time.",
+        "payment": "Card",
+        "terms": true
+    },
+    {
+        "id": 2,
+        "customerId": 2,
+        "email": "janesmith@gmail.com",
+        "phoneNumber": "438-234-5678",
+        "address": "456 Oak Avenue, Montreal QC",
+        "frequency": "Bi-weekly",
+        "date": "2024-12-15",
+        "time": "Flexible - Bi-weekly cleaning every Friday.",
+        "payment": "Cash",
+        "terms": true
+    },
+    {
+        "id": 3,
+        "customerId": 3,
+        "email": "alicej@gmail.com",
+        "phoneNumber": "514-345-6789",
+        "address": "789 Pine Road, Montreal QC",
+        "frequency": "Monthly",
+        "date": "2024-12-20",
+        "time": "Morning start - Monthly service.",
+        "payment": "Card",
+        "terms": true
+    },
+    {
+        "id": 4,
+        "customerId": 4,
+        "email": "bobbrown@gmail.com",
+        "phoneNumber": "438-456-7890",
+        "address": "321 Elm Street, Montreal QC",
+        "frequency": "Other - specify in comments below",
+        "date": "2024-12-10",
+        "time": "Starting at 10:00 AM - Specific schedule TBD.",
+        "payment": "Cash",
+        "terms": false
+    },
+    {
+        "id": 5,
+        "customerId": 5,
+        "email": "charlied@gmail.com",
+        "phoneNumber": "514-567-8901",
+        "address": "555 Birch Boulevard, Montreal QC",
+        "frequency": "One-time",
+        "date": "2024-12-05",
+        "time": "2:00 PM sharp - Single booking.",
+        "payment": "Card",
+        "terms": true
+    },
+    {
+        "id": 6,
+        "customerId": 1,
+        "email": "johndoe@gmail.com",
+        "phoneNumber": "514-123-4567",
+        "address": "123 Maple Street, Montreal QC",
+        "frequency": "Monthly",
+        "date": "2024-12-20",
+        "time": "Evening preferred - Monthly service.",
+        "payment": "Cash",
+        "terms": true
+    },
+    {
+        "id": 7,
+        "customerId": 2,
+        "email": "janesmith@gmail.com",
+        "phoneNumber": "438-234-5678",
+        "address": "456 Oak Avenue, Montreal QC",
+        "frequency": "One-time",
+        "date": "2024-12-10",
+        "time": "10:00 AM - Please confirm time.",
+        "payment": "Card",
+        "terms": true
+    },
+    {
+        "id": 8,
+        "customerId": 3,
+        "email": "alicej@gmail.com",
+        "phoneNumber": "514-345-6789",
+        "address": "789 Pine Road, Montreal QC",
+        "frequency": "Bi-weekly",
+        "date": "2024-12-12",
+        "time": "Mid-morning - Service includes lawn mowing.",
+        "payment": "Card",
+        "terms": true
+    },
+    {
+        "id": 9,
+        "customerId": 4,
+        "email": "bobbrown@gmail.com",
+        "phoneNumber": "438-456-7890",
+        "address": "321 Elm Street, Montreal QC",
+        "frequency": "One-time",
+        "date": "2024-12-09",
+        "time": "Afternoon - Deep cleaning required.",
+        "payment": "Card",
+        "terms": true
+    },
+    {
+        "id": 10,
+        "customerId": 5,
+        "email": "charlied@gmail.com",
+        "phoneNumber": "514-567-8901",
+        "address": "555 Birch Boulevard, Montreal QC",
+        "frequency": "Monthly",
+        "date": "2024-12-25",
+        "time": "Flexible timing - Monthly general cleaning.",
+        "payment": "Cash",
+        "terms": true
+    }
+]
