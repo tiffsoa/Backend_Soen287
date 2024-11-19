@@ -12,13 +12,20 @@ app.use(cors());
 // Utility functions to handle reading and writing to JSON files
 const getServices = () => {
     const data = fs.readFileSync('./services.json');
-    console.log("data", JSON.parse(data))
     return JSON.parse(data);
 };
 
-
 const saveServices = (services) => {
     fs.writeFileSync('./services.json', JSON.stringify(services, null, 2));
+};
+
+const getInvoices = () => {
+    const data = fs.readFileSync('./invoices.json');
+    return JSON.parse(data);
+};
+
+const saveInvoices = (invoices) => {
+    fs.writeFileSync('./invoices.json', JSON.stringify(invoices, null, 2));
 };
 
 const getCompanies = () => {
@@ -29,59 +36,27 @@ const getCompanies = () => {
 const getBookings = () => {
     const data = fs.readFileSync('./bookings.json');
     return JSON.parse(data);
-}
+};
 
 const getCustomers = () => {
     const data = fs.readFileSync('./customer.json');
     return JSON.parse(data);
 };
 
-// to save the list of customers (will overwrite the current customers.json so be careful)
 const saveCustomers = (customers) => {
     fs.writeFileSync('./customer.json', JSON.stringify(customers, null, 2));
 };
 
-// to add one customer
 const addCustomer = (customer) => {
-    let customers = getCustomers();
+    const customers = getCustomers();
     customers.push(customer);
     saveCustomers(customers);
-}
+};
 
 const findCustomerByEmail = (email) => {
     const customers = getCustomers();
     return customers.find(customer => customer.email === email);
 };
-
-// Sign up page route
-
-app.post('/signup', (req, res) => {
-    const { lastName, firstName, phone, email, password } = req.body;
-    const customers = getCustomers();
-    console.log(lastName, firstName, phone, email, password)
-
-    if (!email) {
-        return res.status(400).json({error: "Email is required"});  
-    }
-
-    const customer = findCustomerByEmail(email);
-
-    if (customer) {
-        res.status(404).json({error: "Customer already exists"});
-    } else {
-        const newCustomer = {
-            id: customers[customers.length - 1].id + 1,
-            name: firstName + " " + lastName,
-            email: email,
-            password: password,
-            services: []
-        }
-        res.json(newCustomer);
-        addCustomer(newCustomer);
-    }
-});
-
-
 
 // Admin dashboard service routes
 
@@ -105,15 +80,21 @@ app.get('/services/:id', (req, res) => {
 // Add a new service
 app.post('/services', (req, res) => {
     const services = getServices();
+    const { name, companyId, description, price, date, time, status } = req.body;
+
+    if (!name || !description || !price || !companyId) {
+        return res.status(400).json({ error: 'Missing required fields: name, description, price, or companyId' });
+    }
+
     const newService = {
-        id: services[services.length - 1].id + 1,
-        name: req.body.name,
-        companyId: req.body.companyId,
-        description: req.body.description,
-        price: req.body.price,
-        date: req.body.date,
-        time: req.body.time,
-        status: req.body.status,
+        id: services.length ? services[services.length - 1].id + 1 : 1,
+        name,
+        companyId,
+        description,
+        price,
+        date,
+        time,
+        status,
     };
     services.push(newService);
     saveServices(services);
@@ -149,50 +130,49 @@ app.delete('/services/:id', (req, res) => {
     }
 });
 
-// get company for customer dashboard
-app.get('/customer/ser')
-
-
 // Customer dashboard routes
 
 // Get all services for customer dashboard
-
-app.get('/customer/services', (req, res) => {
+app.get('/customer/:id/services', (req, res) => {
     const services = getServices();
     res.json(services);
 });
 
-// Get a specific customer's services
-app.get('/customer/:id/services', (req, res) => {
+// Get invoices for a specific customer
+app.get('/customer/:id/invoices', (req, res) => {
+    const invoices = getInvoices();
     const customerId = parseInt(req.params.id);
-    const customers = getCustomers();
-    const customer = customers.find(c => c.id === customerId);
-    const companies = getCompanies();
-    const bookings = getBookings();
-    
-    if (!customer) {
-        return res.status(404).json({ error: 'Customer not found' });
+    const customerInvoices = invoices.filter(invoice => invoice.customerId === customerId);
+
+    if (customerInvoices.length > 0) {
+        res.json(customerInvoices);
+    } else {
+        res.status(404).json({ error: 'No invoices found for this customer' });
+    }
+});
+
+// Add an invoice for a customer
+app.post('/customer/:id/invoices', (req, res) => {
+    const customerId = parseInt(req.params.id);
+    const { serviceId, amount, status, dueDate } = req.body;
+
+    if (!serviceId || !amount || !status || !dueDate) {
+        return res.status(400).json({ error: 'Missing required fields: serviceId, amount, status, or dueDate' });
     }
 
-    const customerServices = customer.services.map(serviceId => {
-        const service = getServices().find(service => service.id === serviceId); // Find single matching service
-        if (!service) return null; // Handle case where serviceId doesn't match any service
-    
-        const companyName = companies.find(company => company.id === service.companyId)?.name;
-
-        const date = bookings.find(booking => booking.customerId === customer.id)?.date;
-
-        const time = bookings.find(booking=> booking.customerId === customer.id)?.time;
-    
-        return {
-            service,
-            companyName,
-            date,
-            time
-        };
-    })
-
-    res.json(customerServices);
+    const invoices = getInvoices();
+    const newInvoice = {
+        id: invoices.length ? invoices[invoices.length - 1].id + 1 : 1,
+        customerId,
+        serviceId,
+        amount,
+        status,
+        dueDate,
+        createdAt: new Date().toISOString(),
+    };
+    invoices.push(newInvoice);
+    saveInvoices(invoices);
+    res.status(201).json(newInvoice);
 });
 
 // Add a service to a customer's list (simulate service booking)
@@ -200,12 +180,12 @@ app.post('/customer/:id/services', (req, res) => {
     const customerId = parseInt(req.params.id);
     const customers = getCustomers();
     const customer = customers.find(c => c.id === customerId);
-    
+
     if (!customer) {
         return res.status(404).json({ error: 'Customer not found' });
     }
 
-    const serviceId = req.body.serviceId;
+    const { serviceId } = req.body;
     const services = getServices();
 
     if (services.find(service => service.id === serviceId)) {
@@ -215,98 +195,6 @@ app.post('/customer/:id/services', (req, res) => {
     } else {
         res.status(400).json({ error: 'Service not found' });
     }
-});
-
-// Update customer details (e.g., name, email)
-app.put('/customer/:id', (req, res) => {
-    const customerId = parseInt(req.params.id);
-    const customers = getCustomers();
-    const customer = customers.find(c => c.id === customerId);
-    
-    if (!customer) {
-        return res.status(404).json({ error: 'Customer not found' });
-    }
-
-    // Update customer data
-    const { name, email, password } = req.body;
-    if (name) customer.name = name;
-    if (email) customer.email = email;
-    if (password) customer.password = password;
-
-    saveCustomers(customers);
-    res.json({ message: 'Customer details updated successfully', customer });
-});
-
-// Password Update Route
-app.post('/update-password', (req, res) => {
-    const { customerId, currentPassword, newPassword, confirmPassword } = req.body;
-
-    // Fetch the customer data from the file
-    let customers = getCustomers();
-    let customer = customers.find(c => c.id === customerId);
-
-    if (!customer) {
-        return res.status(404).json({ error: 'Customer not found' });
-    }
-
-    // Check if the current password is correct
-    if (customer.password !== currentPassword) {
-        return res.status(400).json({ error: 'Current password is incorrect' });
-    }
-
-    // Validate new password complexity
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
-    if (!passwordRegex.test(newPassword)) {
-        return res.status(400).json({
-            error: 'New password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, and one number.'
-        });
-    }
-
-    // Check if new password and confirm password match
-    if (newPassword !== confirmPassword) {
-        return res.status(400).json({ error: 'New password and confirmation do not match.' });
-    }
-
-    // Update the password in customer data
-    customer.password = newPassword;
-
-    // Save the updated customers data
-    saveCustomers(customers);
-
-    // Respond with success
-    res.status(200).json({ message: 'Password updated successfully' });
-});
-
-// Sign out simulation (clear session/cookie)
-app.post('/customer/signout', (req, res) => {
-    // Simulate sign out
-    res.json({ message: 'Signed out successfully' });
-});
-
-// Placeholder route for testing
-app.get('/', (req, res) => {
-    res.status(200).send("Welcome to the Root URL of the Server");
-});
-
-
-// Post request test
-app.post('/submit', (req, res) => {
-    const userData = req.body;
-    console.log('Received user data:', userData);
-    res.status(200).send({
-        message: 'Data received successfully',
-        receivedData: userData
-    });
-});
-
-// Put request test
-app.put('/update', (req, res) => {
-    const updatedData = req.body;
-    console.log('Received updated data:', updatedData);
-    res.status(200).send({
-        message: 'Data updated successfully',
-        updatedData: updatedData
-    });
 });
 
 // Start the server
