@@ -56,19 +56,21 @@ const findCustomerByEmail = (email) => {
 // Sign up page route
 
 app.post('/signup', (req, res) => {
-    const { lastName, firstName, phone, email, password } = req.body;
-    const customers = getCustomers();
-    console.log(lastName, firstName, phone, email, password)
+    const { lastName, firstName, phone, email, password } = req.body; //take these fields from the html and send what the 
+    // customer filled them with in the request body 
+    const customers = getCustomers(); // store all customers from customer.json in const customers
+    console.log(lastName, firstName, phone, email, password) //this was just for the sake of debugging
 
-    if (!email) {
-        return res.status(400).json({error: "Email is required"});  
+    if (!email) {  //in signup case, if the email field is not completed, send an error message
+        return res.status(400).json({error: "Email is required"});  //status 400 means error, something went wrong
     }
 
-    const customer = findCustomerByEmail(email);
+    const customer = findCustomerByEmail(email); // here customer stores any customer that has the email that was given
+    // basically if you can find a customer with that email in the database then the customer already exists
 
-    if (customer) {
-        res.status(404).json({error: "Customer already exists"});
-    } else {
+    if (customer) { //if customer was found
+        res.status(404).json({error: "Customer already exists"}); //send error again because customer already exists
+    } else { //else create a new customer with the given attributes
         const newCustomer = {
             id: customers[customers.length - 1].id + 1,
             name: firstName + " " + lastName,
@@ -76,8 +78,8 @@ app.post('/signup', (req, res) => {
             password: password,
             services: []
         }
-        res.json(newCustomer);
-        addCustomer(newCustomer);
+        res.json(newCustomer); // send this new customer as a json response to the frontend (look in the frontend js to see what we do with this)
+        addCustomer(newCustomer); // add the new customer to the database by using our helper function
     }
 });
 
