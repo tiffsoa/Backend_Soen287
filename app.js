@@ -12,13 +12,20 @@ app.use(cors());
 // Utility functions to handle reading and writing to JSON files
 const getServices = () => {
     const data = fs.readFileSync('./services.json');
-    console.log("data", JSON.parse(data))
     return JSON.parse(data);
 };
 
-
 const saveServices = (services) => {
     fs.writeFileSync('./services.json', JSON.stringify(services, null, 2));
+};
+
+const getInvoices = () => {
+    const data = fs.readFileSync('./invoices.json');
+    return JSON.parse(data);
+};
+
+const saveInvoices = (invoices) => {
+    fs.writeFileSync('./invoices.json', JSON.stringify(invoices, null, 2));
 };
 
 const getCompanies = () => {
@@ -29,24 +36,22 @@ const getCompanies = () => {
 const getBookings = () => {
     const data = fs.readFileSync('./bookings.json');
     return JSON.parse(data);
-}
+};
 
 const getCustomers = () => {
     const data = fs.readFileSync('./customer.json');
     return JSON.parse(data);
 };
 
-// to save the list of customers (will overwrite the current customers.json so be careful)
 const saveCustomers = (customers) => {
     fs.writeFileSync('./customer.json', JSON.stringify(customers, null, 2));
 };
 
-// to add one customer
 const addCustomer = (customer) => {
-    let customers = getCustomers();
+    const customers = getCustomers();
     customers.push(customer);
     saveCustomers(customers);
-}
+};
 
 const findCustomerByEmail = (email) => {
     const customers = getCustomers();
@@ -107,15 +112,21 @@ app.get('/services/:id', (req, res) => {
 // Add a new service
 app.post('/services', (req, res) => {
     const services = getServices();
+    const { name, companyId, description, price, date, time, status } = req.body;
+
+    if (!name || !description || !price || !companyId) {
+        return res.status(400).json({ error: 'Missing required fields: name, description, price, or companyId' });
+    }
+
     const newService = {
-        id: services[services.length - 1].id + 1,
-        name: req.body.name,
-        companyId: req.body.companyId,
-        description: req.body.description,
-        price: req.body.price,
-        date: req.body.date,
-        time: req.body.time,
-        status: req.body.status,
+        id: services.length ? services[services.length - 1].id + 1 : 1,
+        name,
+        companyId,
+        description,
+        price,
+        date,
+        time,
+        status,
     };
     services.push(newService);
     saveServices(services);
@@ -151,50 +162,49 @@ app.delete('/services/:id', (req, res) => {
     }
 });
 
-// get company for customer dashboard
-app.get('/customer/ser')
-
-
 // Customer dashboard routes
 
 // Get all services for customer dashboard
-
-app.get('/customer/services', (req, res) => {
+app.get('/customer/:id/services', (req, res) => {
     const services = getServices();
     res.json(services);
 });
 
-// Get a specific customer's services
-app.get('/customer/:id/services', (req, res) => {
+// Get invoices for a specific customer
+app.get('/customer/:id/invoices', (req, res) => {
+    const invoices = getInvoices();
     const customerId = parseInt(req.params.id);
-    const customers = getCustomers();
-    const customer = customers.find(c => c.id === customerId);
-    const companies = getCompanies();
-    const bookings = getBookings();
-    
-    if (!customer) {
-        return res.status(404).json({ error: 'Customer not found' });
+    const customerInvoices = invoices.filter(invoice => invoice.customerId === customerId);
+
+    if (customerInvoices.length > 0) {
+        res.json(customerInvoices);
+    } else {
+        res.status(404).json({ error: 'No invoices found for this customer' });
+    }
+});
+
+// Add an invoice for a customer
+app.post('/customer/:id/invoices', (req, res) => {
+    const customerId = parseInt(req.params.id);
+    const { serviceId, amount, status, dueDate } = req.body;
+
+    if (!serviceId || !amount || !status || !dueDate) {
+        return res.status(400).json({ error: 'Missing required fields: serviceId, amount, status, or dueDate' });
     }
 
-    const customerServices = customer.services.map(serviceId => {
-        const service = getServices().find(service => service.id === serviceId); // Find single matching service
-        if (!service) return null; // Handle case where serviceId doesn't match any service
-    
-        const companyName = companies.find(company => company.id === service.companyId)?.name;
-
-        const date = bookings.find(booking => booking.customerId === customer.id)?.date;
-
-        const time = bookings.find(booking=> booking.customerId === customer.id)?.time;
-    
-        return {
-            service,
-            companyName,
-            date,
-            time
-        };
-    })
-
-    res.json(customerServices);
+    const invoices = getInvoices();
+    const newInvoice = {
+        id: invoices.length ? invoices[invoices.length - 1].id + 1 : 1,
+        customerId,
+        serviceId,
+        amount,
+        status,
+        dueDate,
+        createdAt: new Date().toISOString(),
+    };
+    invoices.push(newInvoice);
+    saveInvoices(invoices);
+    res.status(201).json(newInvoice);
 });
 
 // Add a service to a customer's list (simulate service booking)
@@ -202,12 +212,12 @@ app.post('/customer/:id/services', (req, res) => {
     const customerId = parseInt(req.params.id);
     const customers = getCustomers();
     const customer = customers.find(c => c.id === customerId);
-    
+
     if (!customer) {
         return res.status(404).json({ error: 'Customer not found' });
     }
 
-    const serviceId = req.body.serviceId;
+    const { serviceId } = req.body;
     const services = getServices();
 
     if (services.find(service => service.id === serviceId)) {
