@@ -1,7 +1,0 @@
-[
-    { "id": 1, "name": "John Doe", "email": "johndoe@gmail.com", "password": "John123!" },
-    { "id": 2, "name": "Jane Smith", "email": "janesmith@gmail.com", "password": "Jane123!" },
-    { "id": 3, "name": "Alice Johnson", "email": "alicej@gmail.com", "password": "Alice123!" },
-    { "id": 4, "name": "Bob Brown", "email": "bobbrown@gmail.com", "password": "Bob123!" },
-    { "id": 5, "name": "Charlie Davis", "email": "charlied@gmail.com", "password": "Charlie123!" }
-]
