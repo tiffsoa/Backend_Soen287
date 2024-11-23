@@ -4,10 +4,20 @@ const PORT = 3000;
 const cors = require('cors');
 const fs = require('fs');
 const bodyParser = require('body-parser');
+const session = require('express-session');
 
 // Parse incoming request bodies
 app.use(bodyParser.json());
 app.use(cors());
+app.use(express.urlencoded({ extended: true }));
+
+// Session middleware
+app.use(session({
+    secret: 'your_secret_key', // Secret key for session encryption
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false } // For development, use 'false'. In production, use 'true' with HTTPS
+}));
 
 // Utility functions to handle reading and writing to JSON files
 const getServices = () => {
@@ -39,12 +49,12 @@ const getBookings = () => {
 };
 
 const getCustomers = () => {
-    const data = fs.readFileSync('./customer.json');
+    const data = fs.readFileSync('./customers.json');
     return JSON.parse(data);
 };
 
 const saveCustomers = (customers) => {
-    fs.writeFileSync('./customer.json', JSON.stringify(customers, null, 2));
+    fs.writeFileSync('./customers.json', JSON.stringify(customers, null, 2));
 };
 
 const addCustomer = (customer) => {
@@ -58,12 +68,25 @@ const findCustomerByEmail = (email) => {
     return customers.find(customer => customer.email === email);
 };
 
+//middleware function to protect services from not ogged in users
+function ensureAuthenticated(req, res, next) {
+    if (req.session.customer) {
+        return next();
+    }
+    res.redirect("/signin_c.html"); //redirect to login if not authenticated
+}
+
+//ensure only logged in users can see services
+app.get("/services.html", ensureAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, "services.html"));
+})
+
 // Sign up page route
 
 app.post('/signup', (req, res) => {
     const { lastName, firstName, phone, email, password } = req.body; //take these fields from the html and send what the 
     // customer filled them with in the request body 
-    const customers = getCustomers(); // store all customers from customer.json in const customers
+    const customers = getCustomers(); // store all customers from customers.json in const customers
     console.log(lastName, firstName, phone, email, password) //this was just for the sake of debugging
 
     if (!email || !password) {
@@ -87,6 +110,43 @@ app.post('/signup', (req, res) => {
         addCustomer(newCustomer); // add the new customer to the database by using our helper function
     }
 });
+
+// Sign in for customers page route
+app.post('/signin/customer', (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ error: "Email and Password are required!" });
+    }
+
+    // Find customer by email
+    const customer = findCustomerByEmail(email);
+
+    if (!customer) {
+        return res.status(401).json({ error: "Invalid email or password!" });
+    }
+
+    // Check if password matches
+    if (customer.password !== password) {
+        return res.status(401).json({ error: "Invalid email or password!" });
+    }
+
+    // Store customer information in session
+    req.session.customer = {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email
+    };
+
+    // Respond with success
+    res.json({
+        message: "Login successful!",
+        customer: req.session.customer // Optional: Return customer info for frontend
+    });
+});
+
+
+//middleware function to check if a session exists so only logged in customers can access services.html
 
 
 
