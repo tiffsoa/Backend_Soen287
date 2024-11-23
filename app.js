@@ -66,8 +66,8 @@ app.post('/signup', (req, res) => {
     const customers = getCustomers(); // store all customers from customer.json in const customers
     console.log(lastName, firstName, phone, email, password) //this was just for the sake of debugging
 
-    if (!email) {  //in signup case, if the email field is not completed, send an error message
-        return res.status(400).json({error: "Email is required"});  //status 400 means error, something went wrong
+    if (!email || !password) {
+        return res.status(400).json({ error: "Email and Password are required!" });
     }
 
     const customer = findCustomerByEmail(email); // here customer stores any customer that has the email that was given
