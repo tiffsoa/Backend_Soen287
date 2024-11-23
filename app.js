@@ -102,11 +102,11 @@ app.post('/signup', (req, res) => {
 // Bookings route
 
 app.post('/bookings', (req, res) => {
-    const { name, email, phone, address, frequency, serviceDate, comments, payment, terms } = req.body; //take inputs from the html booking form and send
+    const { name, email, phoneNumber, address, frequency, serviceDate, comments, payment, terms } = req.body; //take inputs from the html booking form and send
     const bookings = getBookings(); // store all bookings from booking.json in const bookings
-    console.log( name, email, phone, address, frequency, serviceDate, comments, payment, terms) // debugging purposes
+    console.log( name, email, phoneNumber, address, frequency, serviceDate, comments, payment, terms) // debugging purposes
 
-    if (!name || !email || !phone || !address || !frequency || !serviceDate || !payment || !comments || !terms) {  // If any field is not completed, send an error message
+    if (!name || !email || !phoneNumber || !address || !frequency || !serviceDate || !payment || !comments || !terms) {  // If any field is not completed, send an error message
         return res.status(400).json({error: "Missing fields!"});  //status 400 means something went wrong
     }
 
@@ -114,7 +114,7 @@ app.post('/bookings', (req, res) => {
         id: bookings[bookings.length - 1].id + 1,
         //customerId: 2, //HAVE TO CHANGE ***************
         email: email,
-        phoneNumber: phone,
+        phoneNumber: phoneNumber,
         address: address,
         frequency: frequency,
         date: serviceDate,
@@ -123,8 +123,8 @@ app.post('/bookings', (req, res) => {
         terms: true
     }
 
-    res.json(newBooking); 
     addBooking(newBooking); 
+    res.json(newBooking); 
 });
 
 
