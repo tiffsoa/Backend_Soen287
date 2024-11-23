@@ -1,26 +1,5 @@
 {
-  "name": "backend_soen287",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node app.js",
-    "dev": "nodemon app.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/tiffsoa/Backend_Soen287.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/tiffsoa/Backend_Soen287/issues"
-  },
-  "homepage": "https://github.com/tiffsoa/Backend_Soen287#readme",
   "dependencies": {
-    "cors": "^2.8.5",
     "express": "^4.21.1"
   }
 }
