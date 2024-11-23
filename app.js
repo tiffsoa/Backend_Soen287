@@ -89,6 +89,19 @@ app.post('/signup', (req, res) => {
 });
 
 
+// Bookings route
+// fetching data from booking form and sending it to bookings.json 
+app.get('/bookings/:id', (req, res) => {
+    const bookingId = parseInt(req.params.id); 
+    const bookings = getBookings();
+    const booking = bookings.find( b => b.id === bookingId );
+
+    if (!booking) {
+        return res.status(404).json({error: 'Booking not found'});
+    }
+    res.status(200).json(booking);
+});
+
 
 // Admin dashboard service routes
 
