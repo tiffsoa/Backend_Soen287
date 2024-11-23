@@ -47,10 +47,20 @@ const saveCustomers = (customers) => {
     fs.writeFileSync('./customer.json', JSON.stringify(customers, null, 2));
 };
 
+const saveBookings = (bookings) => {
+    fs.writeFileSync('./bookings.json', JSON.stringify(bookings, null, 2));
+};
+
 const addCustomer = (customer) => {
     const customers = getCustomers();
     customers.push(customer);
     saveCustomers(customers);
+};
+
+const addBooking = (booking) => {
+    const bookings = getCustomers();
+    bookings.push(booking);
+    saveBookings(bookings);
 };
 
 const findCustomerByEmail = (email) => {
@@ -90,16 +100,31 @@ app.post('/signup', (req, res) => {
 
 
 // Bookings route
-// fetching data from booking form and sending it to bookings.json 
-app.get('/bookings/:id', (req, res) => {
-    const bookingId = parseInt(req.params.id); 
-    const bookings = getBookings();
-    const booking = bookings.find( b => b.id === bookingId );
 
-    if (!booking) {
-        return res.status(404).json({error: 'Booking not found'});
+app.post('/bookings', (req, res) => {
+    const { name, email, phone, address, frequency, serviceDate, comments, payment, terms } = req.body; //take inputs from the html booking form and send
+    const bookings = getBookings(); // store all bookings from booking.json in const bookings
+    console.log( name, email, phone, address, frequency, serviceDate, comments, payment, terms) // debugging purposes
+
+    if (!name || !email || !phone || !address || !frequency || !serviceDate || !payment || !comments || !terms) {  // If any field is not completed, send an error message
+        return res.status(400).json({error: "Missing fields!"});  //status 400 means something went wrong
     }
-    res.status(200).json(booking);
+
+    const newBooking = {
+        id: bookings[bookings.length - 1].id + 1,
+        //customerId: 2, //HAVE TO CHANGE ***************
+        email: email,
+        phoneNumber: phone,
+        address: address,
+        frequency: frequency,
+        date: serviceDate,
+        time: comments,
+        payment: payment,
+        terms: true
+    }
+
+    res.json(newBooking); 
+    addBooking(newBooking); 
 });
 
 
