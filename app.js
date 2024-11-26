@@ -1,425 +1,803 @@
-const express = require('express');
+const express = require("express");
 const app = express();
 const PORT = 3000;
-const cors = require('cors');
-const fs = require('fs');
-const bodyParser = require('body-parser');
-const session = require('express-session');
+const cors = require("cors");
+const fs = require("fs");
+const bodyParser = require("body-parser");
+//const cookieParser = require("cookie-parser");
+const mysql = require("mysql");
+const session = require("express-session");
+
+app.use(session({ secret: "a-secret-key-to-encrypt-session-data" }));
 
 // Parse incoming request bodies
 app.use(bodyParser.json());
-app.use(cors());
+app.use(cors({ origin: "http://127.0.0.1:5500", credentials: true }));
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware
-app.use(session({
-    secret: 'your_secret_key', // Secret key for session encryption
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false } // For development, use 'false'. In production, use 'true' with HTTPS
-}));
+//cookie-parser middleware
+//app.use(cookieParser()); // Secret key for signing cookies
 
-// Utility functions to handle reading and writing to JSON files
-const getServices = () => {
-    const data = fs.readFileSync('./services.json');
-    return JSON.parse(data);
+//connect to the database
+const db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "service_manager_website", // use the name of your DB
+});
+db.connect((err) => {
+  if (err) {
+    console.log("Error connecting to DB");
+  } else {
+    console.log("Connected");
+  }
+});
+
+/*
+
+GIRLIE GIRLIE GIRLIE GIRLIE POP POP POP POOOOOOOOOOOOOOOOOOOOP!!!!!!!
+- need to do everything after customer invoice:
+    - getting their services from booking
+    - updating their info (password)
+    - delete account
+    - sign out
+
+- modify company info ???????? (logo name address)
+- add session 
+
+*/
+
+const getObjectByIdFromDb = (tableName, objectId) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT * FROM ${tableName} WHERE id = ?`;
+    db.query(sql, [objectId], (err, result) => {
+      if (err) reject("Could not retrieve data from table!");
+      else if (result.length === 0) reject("Object not found!");
+      else resolve(result[0]); // Return the first result since we're looking for a single service
+    });
+  });
 };
 
-const saveServices = (services) => {
-    fs.writeFileSync('./services.json', JSON.stringify(services, null, 2));
+// Utility functions to handle reading and writing to the database
+const getServices = () => {
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT * FROM services";
+    db.query(sql, (err, result) => {
+      if (err) reject("Could not retrieve data from table!");
+      else resolve(result);
+    });
+  });
+};
+
+const addService = (service) => {
+  return new Promise((resolve, reject) => {
+    let sql = "INSERT INTO services SET ?";
+    db.query(sql, service, (err, result) => {
+      if (err) reject("Could not insert new service!");
+      else resolve(service);
+    });
+  });
+};
+
+const editService = (updatedService, serviceId) => {
+  return new Promise((resolve, reject) => {
+    // Create an SQL query to update the service
+    const sql =
+      "UPDATE services SET name = ?, description = ?, price = ? WHERE id = ?";
+
+    // Execute the query with the new values
+    db.query(
+      sql,
+      [
+        updatedService.name,
+        updatedService.description,
+        updatedService.price,
+        serviceId,
+      ],
+      (err, result) => {
+        if (err) {
+          // If an error occurs during the update
+          reject("Could not update the service!");
+        } else if (result.affectedRows === 0) {
+          // If no rows were affected (i.e., no service was found with the given ID)
+          reject("Service not found!");
+        } else {
+          // If the update was successful
+          resolve("Service updated successfully!");
+        }
+      }
+    );
+  });
+};
+
+const deleteService = (serviceId) => {
+  return new Promise((resolve, reject) => {
+    let sql = "DELETE FROM services WHERE id = ?";
+    db.query(sql, [serviceId], (err, result) => {
+      if (err) {
+        reject("Could not delete service due to an error");
+      } else if (result.affectedRows === 0) {
+        reject("Service not found or already deleted");
+      } else {
+        resolve("Service deleted successfully!");
+      }
+    });
+  });
+};
+
+const getCustomerByEmail = (email) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM customers WHERE email = ?";
+
+    db.query(sql, [email], (err, result) => {
+      if (err) return reject("Could not retrieve customer!");
+      if (result.length === 0) return resolve({});
+      resolve(result[0]); // Returning the first matching customer
+    });
+  });
+};
+
+const getCompanyByEmail = (email) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM companies WHERE email = ?";
+
+    db.query(sql, [email], (err, result) => {
+      if (err) return reject("Could not retrieve company!");
+      if (result.length === 0) return reject("Company not found!");
+      resolve(result[0]); // Returning the first matching company
+    });
+  });
+};
+
+const editCompany = (updatedCompany, companyId) => {
+  return new Promise((resolve, reject) => {
+    // Create an SQL query to update the customer
+    const sql =
+      "UPDATE companies SET name = ?, address = ?, logo = ? WHERE id = ?";
+
+    // Execute the query with the new values
+    db.query(
+      sql,
+      [
+        updatedCompany.name,
+        updatedCompany.address,
+        updatedCompany.logo,
+        companyId,
+      ],
+      (err, result) => {
+        if (err) {
+          // If an error occurs during the update
+          reject("Could not update the company information!");
+        } else if (result.affectedRows === 0) {
+          // If no rows were affected (i.e., no customer was found with the given ID)
+          reject("Company not found!");
+        } else {
+          // If the update was successful
+          resolve("Company updated successfully!");
+        }
+      }
+    );
+  });
 };
 
 const getInvoices = () => {
-    const data = fs.readFileSync('./invoices.json');
-    return JSON.parse(data);
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT * FROM invoices";
+    db.query(sql, (err, result) => {
+      if (err) reject("Could not retrieve data from table!");
+      else resolve(result);
+    });
+  });
 };
 
-const saveInvoices = (invoices) => {
-    fs.writeFileSync('./invoices.json', JSON.stringify(invoices, null, 2));
+const addInvoices = (invoice) => {
+  console.log("invoice", invoice);
+  return new Promise((resolve, reject) => {
+    let sql = "INSERT INTO invoices SET ?";
+    db.query(sql, invoice, (err, result) => {
+      if (err) reject("Could not insert new invoice!");
+      else resolve(invoice);
+    });
+  });
 };
 
-const getCompanies = () => {
-    const data = fs.readFileSync('./companies.json');
-    return JSON.parse(data);
-};
-
-const getBookings = () => {
-    const data = fs.readFileSync('./bookings.json');
-    return JSON.parse(data);
-};
-
+// for customer data
 const getCustomers = () => {
-    const data = fs.readFileSync('./customers.json');
-    return JSON.parse(data);
-};
-
-const saveCustomers = (customers) => {
-    fs.writeFileSync('./customers.json', JSON.stringify(customers, null, 2));
-};
-
-const saveBookings = (bookings) => {
-    fs.writeFileSync('./bookings.json', JSON.stringify(bookings, null, 2));
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT * FROM customers";
+    db.query(sql, (err, result) => {
+      if (err) reject("Could not retrieve data from table!");
+      else resolve(result);
+    });
+  });
 };
 
 const addCustomer = (customer) => {
-    const customers = getCustomers();
-    customers.push(customer);
-    saveCustomers(customers);
+  console.log("customer", customer);
+  return new Promise((resolve, reject) => {
+    let sql = "INSERT INTO customers SET ?";
+    db.query(sql, customer, (err, result) => {
+      if (err) reject("Could not insert new customer!");
+      else resolve(customer);
+    });
+  });
+};
+
+const editCustomer = (updatedCustomer, customerId) => {
+  return new Promise((resolve, reject) => {
+    // Create an SQL query to update the customer
+    const sql =
+      "UPDATE customers SET name = ?, email = ?, password = ? WHERE id = ?";
+
+    // Execute the query with the new values
+    db.query(
+      sql,
+      [
+        updatedCustomer.name,
+        updatedCustomer.email,
+        updatedCustomer.password,
+        customerId,
+      ],
+      (err, result) => {
+        if (err) {
+          // If an error occurs during the update
+          reject("Could not update the customer information!");
+        } else if (result.affectedRows === 0) {
+          // If no rows were affected (i.e., no customer was found with the given ID)
+          reject("Customer not found!");
+        } else {
+          // If the update was successful
+          resolve("Customer updated successfully!");
+        }
+      }
+    );
+  });
+};
+
+const deleteCustomer = (customerId) => {
+  return new Promise((resolve, reject) => {
+    let sql = "DELETE FROM customers WHERE id = ?";
+    db.query(sql, [customerId], (err, result) => {
+      if (err) {
+        reject("Could not delete customer due to an error");
+      } else if (result.affectedRows === 0) {
+        reject("Customer not found or already deleted");
+      } else {
+        resolve("Customer deleted successfully!");
+      }
+    });
+  });
 };
 
 const addBooking = (booking) => {
-    const bookings = getCustomers();
-    bookings.push(booking);
-    saveBookings(bookings);
+  console.log("booking", booking);
+  return new Promise((resolve, reject) => {
+    let sql = "INSERT INTO bookings SET ?";
+    db.query(sql, booking, (err, result) => {
+      if (err) reject("Could not insert new booking!");
+      else resolve(booking);
+    });
+  });
 };
 
-const findCustomerByEmail = (email) => {
-    const customers = getCustomers();
-    return customers.find(customer => customer.email === email);
+const getBookings = () => {
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT * FROM bookings";
+    db.query(sql, (err, result) => {
+      if (err) reject("Could not retrieve data from table!");
+      else resolve(result);
+    });
+  });
 };
 
-//middleware function to protect services from not ogged in users
-function ensureAuthenticated(req, res, next) {
-    if (req.session.customer) {
-        return next();
-    }
-    res.redirect("/signin_c.html"); //redirect to login if not authenticated
-}
+//middleware function to protect services from not logged in users
+/* function ensureAuthenticated(req, res, next) {
+  if (req.cookies.customer) {
+    return next();
+  }
+  //res.redirect("/signin_c.html"); //redirect to login if not authenticated
+  res.status(401).json({ error: "Not logged in" });
+} */
 
-//ensure only logged in users can see services
+/* //ensure only logged in users can see services
 app.get("/services.html", ensureAuthenticated, (req, res) => {
-    res.sendFile(path.join(__dirname, "services.html"));
-})
+  res.sendFile(path.join(__dirname, "services.html"));
+}); */
 
 // Sign up page route
 
-app.post('/signup', (req, res) => {
-    const { lastName, firstName, phone, email, password } = req.body; //take these fields from the html and send what the 
-    // customer filled them with in the request body 
-    const customers = getCustomers(); // store all customers from customers.json in const customers
-    console.log(lastName, firstName, phone, email, password) //this was just for the sake of debugging
+app.post("/signup", async (req, res) => {
+  try {
+    const email = req.body.email;
+    const password = req.body.password;
+    const name = req.body.firstName + " " + req.body.lastName;
 
-    if (!email || !password) {
-        return res.status(400).json({ error: "Email and Password are required!" });
+    if (!name || !email || !password) {
+      return res.sendStatus(400);
     }
 
-    const customer = findCustomerByEmail(email); // here customer stores any customer that has the email that was given
-    // basically if you can find a customer with that email in the database then the customer already exists
+    const customerFromEmail = await getCustomerByEmail(email);
 
-    if (customer) { //if customer was found
-        res.status(404).json({error: "Customer already exists"}); //send error again because customer already exists
-    } else { //else create a new customer with the given attributes
-        const newCustomer = {
-            id: customers[customers.length - 1].id + 1,
-            name: firstName + " " + lastName,
-            email: email,
-            password: password,
-            services: []
-        }
-        res.json(newCustomer); // send this new customer as a json response to the frontend (look in the frontend js to see what we do with this)
-        addCustomer(newCustomer); // add the new customer to the database by using our helper function
+    console.log("customerFromemail", customerFromEmail);
+    if (JSON.stringify(customerFromEmail) !== "{}") {
+      res.status(400).json({ error: "Customer already exists!" });
     }
+
+    const newCustomer = { name, email, password };
+
+    addCustomer(newCustomer);
+    res.json(newCustomer);
+  } catch (e) {
+    console.log(e);
+    res.sendStatus(400);
+  }
+});
+
+app.post("/signin/company", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and Password are required!" });
+  }
+
+  // Find company by email
+  try {
+    const company = await getCompanyByEmail(email);
+    if (!company) {
+      return res.status(401).json({ error: "Invalid email or password!" });
+    }
+
+    if (company.password !== password) {
+      return res.status(401).json({ error: "Invalid email or password!" });
+    }
+
+    // Store company id in session
+    req.session.companyId = company.id;
+
+    res.json({
+      message: "Login successful!",
+      companyId: company.id,
+    });
+  } catch (err) {
+    console.log("Error:", err); // Handling the error gracefully
+    return res.status(401).json({ error: "Invalid email or password!" });
+  }
 });
 
 // Sign in for customers page route
-app.post('/signin/customer', (req, res) => {
-    const { email, password } = req.body;
+app.post("/signin/customer", async (req, res) => {
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).json({ error: "Email and Password are required!" });
-    }
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and Password are required!" });
+  }
 
-    // Find customer by email
-    const customer = findCustomerByEmail(email);
-
+  // Find customer by email
+  try {
+    const customer = await getCustomerByEmail(email);
     if (!customer) {
-        return res.status(401).json({ error: "Invalid email or password!" });
+      return res.status(401).json({ error: "Invalid email or password!" });
     }
 
-    // Check if password matches
     if (customer.password !== password) {
-        return res.status(401).json({ error: "Invalid email or password!" });
+      return res.status(401).json({ error: "Invalid email or password!" });
     }
 
-    // Store customer information in session
-    req.session.customer = {
-        id: customer.id,
-        name: customer.name,
-        email: customer.email
-    };
+    // Store customer id in cookie
+    /* res.cookie("customerId", customer.id, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    }); */
 
-    // Respond with success
     res.json({
-        message: "Login successful!",
-        customer: req.session.customer // Optional: Return customer info for frontend
+      message: "Login successful!",
+      customerId: customer.id,
     });
+  } catch (err) {
+    console.log("Error:", err); // Handling the error gracefully
+    return res.status(401).json({ error: "Invalid email or password!" });
+  }
 });
 
-
-//middleware function to check if a session exists so only logged in customers can access services.html
-
-
-// Bookings route
-
-app.post('/bookings', (req, res) => {
-    const { name, email, phoneNumber, address, frequency, serviceDate, comments, payment, terms } = req.body; //take inputs from the html booking form and send
-    const bookings = getBookings(); // store all bookings from booking.json in const bookings
-    console.log( name, email, phoneNumber, address, frequency, serviceDate, comments, payment, terms) // debugging purposes
-
-    if (!name || !email || !phoneNumber || !address || !frequency || !serviceDate || !payment || !comments || !terms) {  // If any field is not completed, send an error message
-        return res.status(400).json({error: "Missing fields!"});  //status 400 means something went wrong
+//admin dashboard route
+//get admin profile
+app.get("/admin/:id", async (req, res) => {
+  companyId = parseInt(req.params.id);
+  try {
+    //get company by id
+    const result = await getObjectByIdFromDb("companies", companyId);
+    if (result) {
+      res.json(result);
+    } else {
+      res.status(404).json({ message: "Company not found" });
     }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+app.put("/admin/:id", async (req, res) => {
+  const companyId = parseInt(req.params.id);
+
+  const { name, logo, address, description } = req.body;
+
+  const updatedCompany = {};
+  if (name) updatedCompany.name = name;
+  if (logo) updatedCompany.logo = logo;
+  if (address) updatedCompany.address = address;
+  if (description) updatedCompany.description = description;
+
+  try {
+    const message = await editCompany(updatedCompany, companyId);
+    res.json({ message, updatedCompany });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
+//route for company info from cookie
+/* app.get("/session/admin", (req, res) => {
+  if (req.cookies.companyId) {
+    res.json({ companyId: req.cookies.companyId });
+  } else {
+    res.status(401).json({ error: "Not logged in" });
+  }
+}); */
+
+//route for customer info from cookie
+/* app.get("/session/customer", (req, res) => {
+  console.log("cookies", req.cookies);
+  if (req.cookies.customerId) {
+    res.json({ customerId: req.cookies.customerId });
+  } else {
+    res.status(401).json({ error: "Not logged in" });
+  }
+}); */
+
+//bookings route
+app.post("/bookings", async (req, res) => {
+  try {
+    const {
+      email,
+      phoneNumber,
+      address,
+      frequency,
+      serviceDate,
+      comments,
+      payment,
+      terms,
+    } = req.body;
+
+    if (
+      !email ||
+      !phoneNumber ||
+      !address ||
+      !frequency ||
+      !serviceDate ||
+      !payment ||
+      !terms
+    ) {
+      return res.status(400).json({ error: "All fields are required!" });
+    }
+
+    // Defaulting to serviceId 1 for now
+    const serviceId = req.body.serviceId || 1;
 
     const newBooking = {
-        id: bookings[bookings.length - 1].id + 1,
-        //customerId: 2, //HAVE TO CHANGE ***************
-        email: email,
-        phoneNumber: phoneNumber,
-        address: address,
-        frequency: frequency,
-        date: serviceDate,
-        time: comments,
-        payment: payment,
-        terms: true
-    }
+      email,
+      phoneNumber,
+      address,
+      frequency,
+      date: serviceDate,
+      time: comments,
+      payment,
+      terms: terms ? 1 : 0, // Storing terms as 1 (true) or 0 (false)
+      serviceId,
+    };
 
-    addBooking(newBooking); 
-    res.json(newBooking); 
+    const booking = await addBooking(newBooking);
+    res.status(201).json(booking);
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while saving the booking." });
+  }
 });
 
-
-// Admin dashboard service routes
-
-// Get all services
-app.get('/services', (req, res) => {
-    const services = getServices();
-    res.json(services);
+// Get all services (only those with matching company id) !!!!!!!!!!
+app.get("/services", async (req, res) => {
+  const services = await getServices();
+  res.json(services);
 });
 
 // Get a single service by ID
-app.get('/services/:id', (req, res) => {
-    const services = getServices();
-    const service = services.find((s) => s.id === parseInt(req.params.id));
-    if (service) {
-        res.json(service);
-    } else {
-        res.status(404).json({ error: 'Service not found' });
-    }
+app.get("/services/:id", async (req, res) => {
+  const services = await getServices();
+  const service = services.find((s) => s.id === parseInt(req.params.id));
+  if (service) {
+    res.json(service);
+  } else {
+    res.status(404).json({ error: "Service not found" });
+  }
 });
 
 // Add a new service
-app.post('/services', (req, res) => {
-    const services = getServices();
-    const { name, companyId, description, price, date, time, status } = req.body;
+app.post("/services", async (req, res) => {
+  const { name, companyId, description, price } = req.body;
 
-    if (!name || !description || !price || !companyId) {
-        return res.status(400).json({ error: 'Missing required fields: name, description, price, or companyId' });
-    }
+  if (!name || !description || !price) {
+    return res.status(400).json({
+      error: "Missing required fields: name, description, price, or companyId",
+    });
+  }
 
-    const newService = {
-        id: services.length ? services[services.length - 1].id + 1 : 1,
-        name,
-        companyId,
-        description,
-        price,
-        date,
-        time,
-        status,
-    };
-    services.push(newService);
-    saveServices(services);
-    res.status(201).json(newService);
+  const newService = {
+    name,
+    companyId: companyId || 1,
+    description,
+    price,
+  };
+
+  await addService(newService);
+  res.status(201).json(newService);
 });
 
 // Update an existing service
-app.put('/services/:id', (req, res) => {
-    const services = getServices();
-    const serviceIndex = services.findIndex((s) => s.id === parseInt(req.params.id));
-    if (serviceIndex !== -1) {
-        const updatedService = {
-            ...services[serviceIndex],
-            ...req.body,
-        };
-        services[serviceIndex] = updatedService;
-        saveServices(services);
-        res.json(updatedService);
-    } else {
-        res.status(404).json({ error: 'Service not found' });
-    }
+app.put("/services/:id", async (req, res) => {
+  const service = await getObjectByIdFromDb("services", req.params.id);
+
+  if (service) {
+    const updatedService = {
+      ...service,
+      ...req.body,
+    };
+
+    const newService = await editService(updatedService, req.params.id);
+    res.json(newService);
+  } else {
+    res.status(404).json({ error: "Service not found" });
+  }
 });
 
 // Delete a service (Simulate cancellation)
-app.delete('/services/:id', (req, res) => {
-    const services = getServices();
-    const filteredServices = services.filter((s) => s.id !== parseInt(req.params.id));
-    if (filteredServices.length !== services.length) {
-        saveServices(filteredServices);
-        res.json({ message: 'Service canceled successfully' });
-    } else {
-        res.status(404).json({ error: 'Service not found' });
-    }
+app.delete("/services/:id", async (req, res) => {
+  const serviceId = req.params.id; // Get the service ID from the URL params
+
+  try {
+    const message = await deleteService(serviceId);
+    res.json({ message }); // Send the success message as JSON
+  } catch (err) {
+    res.status(404).json({ error: err }); // Send the error message as JSON
+  }
 });
 
 // Customer dashboard routes
 
-// Get all services for customer dashboard
-app.get('/customer/:id/services', (req, res) => {
-    const services = getServices();
-    res.json(services);
+//get all services for a customer dashboard (from booking)
+//get the service id from booking then use service id to show service from services
+app.get("/customer/:id/services", async (req, res) => {
+  //take customer email from booking and verify if it matches the current customer's email
+  //if it does then get the service id and check in services to show which service it is
+  const customerID = parseInt(req.params.id);
+
+  try {
+    const customer = await getObjectByIdFromDb("customers", customerID);
+    const customerEmail = customer.email;
+
+    const bookings = await getBookings();
+    const customerBookings = bookings.filter(
+      (booking) => booking.email === customerEmail
+    );
+
+    if (customerBookings.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "No bookings found for this customer" });
+    }
+
+    const services = await getServices();
+    const bookedServices = customerBookings.map((booking) => {
+      const service = services.find(
+        (service) => service.id === booking.serviceId
+      );
+      return {
+        serviceDetails: service || null,
+      };
+    });
+    res.json(bookedServices);
+  } catch (error) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
-// Get invoices for a specific customer
-app.get('/customer/:id/invoices', (req, res) => {
-    const invoices = getInvoices();
-    const customerId = parseInt(req.params.id);
-    const customerInvoices = invoices.filter(invoice => invoice.customerId === customerId);
+//get invoices for a customer
+app.get("/customer/:id/invoices", async (req, res) => {
+  const customerId = parseInt(req.params.id);
+
+  try {
+    const invoices = await getInvoices();
+    const customerInvoices = invoices.filter(
+      (invoice) => invoice.customerId === customerId
+    );
 
     if (customerInvoices.length > 0) {
-        res.json(customerInvoices);
+      res.json(customerInvoices);
     } else {
-        res.status(404).json({ error: 'No invoices found for this customer' });
+      res.status(404).json({ error: "No invoices found for this customer" });
     }
+  } catch (err) {
+    console.error("Error fetching invoices:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
-// Add an invoice for a customer
-app.post('/customer/:id/invoices', (req, res) => {
-    const customerId = parseInt(req.params.id);
-    const { serviceId, amount, status, dueDate } = req.body;
+////////STILL NEED TO VERIFY IF INVOICES WORK?????????
 
-    if (!serviceId || !amount || !status || !dueDate) {
-        return res.status(400).json({ error: 'Missing required fields: serviceId, amount, status, or dueDate' });
-    }
+//add invoice for a customer
+app.post("/customer/:id/invoices", async (req, res) => {
+  const customerId = parseInt(req.params.id);
+  const { serviceId, amount, status, dueDate } = req.body;
 
-    const invoices = getInvoices();
-    const newInvoice = {
-        id: invoices.length ? invoices[invoices.length - 1].id + 1 : 1,
-        customerId,
-        serviceId,
-        amount,
-        status,
-        dueDate,
-        createdAt: new Date().toISOString(),
-    };
-    invoices.push(newInvoice);
-    saveInvoices(invoices);
+  if (!serviceId || !amount || !status || !dueDate) {
+    return res.status(400).json({
+      error: "Missing required fields: serviceId, amount, status, or dueDate",
+    });
+  }
+
+  const newInvoice = {
+    customerId,
+    serviceId,
+    amount,
+    status,
+    dueDate,
+  };
+
+  try {
+    await addInvoices(newInvoice);
     res.status(201).json(newInvoice);
-});
-
-// Add a service to a customer's list (simulate service booking)
-app.post('/customer/:id/services', (req, res) => {
-    const customerId = parseInt(req.params.id);
-    const customers = getCustomers();
-    const customer = customers.find(c => c.id === customerId);
-
-    if (!customer) {
-        return res.status(404).json({ error: 'Customer not found' });
-    }
-
-    const { serviceId } = req.body;
-    const services = getServices();
-
-    if (services.find(service => service.id === serviceId)) {
-        customer.services.push(serviceId);
-        saveCustomers(customers);
-        res.status(201).json({ message: 'Service added to customer profile', services: customer.services });
-    } else {
-        res.status(400).json({ error: 'Service not found' });
-    }
+  } catch (err) {
+    console.error("Error adding invoice:", err);
+    res.status(500).json({ error: "Failed to create invoice" });
+  }
 });
 
 // Update customer details (e.g., name, email)
-app.put('/customer/:id', (req, res) => {
-    const customerId = parseInt(req.params.id);
-    const customers = getCustomers();
-    const customer = customers.find(c => c.id === customerId);
-    
-    if (!customer) {
-        return res.status(404).json({ error: 'Customer not found' });
-    }
+app.put("/customer/:id", async (req, res) => {
+  const customerId = parseInt(req.params.id);
 
-    // Update customer data
-    const { name, email, password } = req.body;
-    if (name) customer.name = name;
-    if (email) customer.email = email;
-    if (password) customer.password = password;
+  const { name, email, password } = req.body;
 
-    saveCustomers(customers);
-    res.json({ message: 'Customer details updated successfully', customer });
+  const updatedCustomer = {};
+  if (name) updatedCustomer.name = name;
+  if (email) updatedCustomer.email = email;
+  if (password) updatedCustomer.password = password;
+
+  try {
+    const message = await editCustomer(updatedCustomer, customerId);
+    res.json({ message, updatedCustomer });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
+//delete account
+app.delete("/customer/:id", async (req, res) => {
+  const customerId = req.params.id;
+
+  await deleteCustomer(customerId)
+    .then((message) => {
+      res.status(200).json({ message });
+    })
+    .catch((error) => {
+      res.status(500).json({ error });
+    });
 });
 
 // Password Update Route
-app.post('/update-password', (req, res) => {
-    const { customerId, currentPassword, newPassword, confirmPassword } = req.body;
+app.post("/update-password", async (req, res) => {
+  const { customerId, currentPassword, newPassword, confirmPassword } =
+    req.body;
 
-    // Fetch the customer data from the file
-    let customers = getCustomers();
-    let customer = customers.find(c => c.id === customerId);
+  // Validate input fields
+  if (!customerId || !currentPassword || !newPassword || !confirmPassword) {
+    return res.status(400).json({ error: "All fields are required." });
+  }
 
-    if (!customer) {
-        return res.status(404).json({ error: 'Customer not found' });
+  // Validate new password complexity
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+  if (!passwordRegex.test(newPassword)) {
+    return res.status(400).json({
+      error:
+        "New password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, and one number.",
+    });
+  }
+
+  // Check if new password matches confirmation
+  if (newPassword !== confirmPassword) {
+    return res
+      .status(400)
+      .json({ error: "New password and confirmation do not match." });
+  }
+
+  try {
+    // Fetch customer from database by ID
+    const [customerResult] = await new Promise((resolve, reject) => {
+      const sql = "SELECT * FROM customers WHERE id = ?";
+      db.query(sql, [customerId], (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+
+    if (!customerResult) {
+      return res.status(404).json({ error: "Customer not found." });
     }
 
-    // Check if the current password is correct
+    const customer = customerResult;
+
+    // Check if current password matches
     if (customer.password !== currentPassword) {
-        return res.status(400).json({ error: 'Current password is incorrect' });
+      return res.status(400).json({ error: "Current password is incorrect." });
     }
 
-    // Validate new password complexity
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
-    if (!passwordRegex.test(newPassword)) {
-        return res.status(400).json({
-            error: 'New password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, and one number.'
-        });
-    }
-
-    // Check if new password and confirm password match
-    if (newPassword !== confirmPassword) {
-        return res.status(400).json({ error: 'New password and confirmation do not match.' });
-    }
-
-    // Update the password in customer data
-    customer.password = newPassword;
-
-    // Save the updated customers data
-    saveCustomers(customers);
+    // Update the password in the database
+    await new Promise((resolve, reject) => {
+      const updateSql = "UPDATE customers SET password = ? WHERE id = ?";
+      db.query(updateSql, [newPassword, customerId], (err, result) => {
+        if (err) reject(err);
+        else if (result.affectedRows === 0)
+          reject("Customer not found during update.");
+        else resolve();
+      });
+    });
 
     // Respond with success
-    res.status(200).json({ message: 'Password updated successfully' });
+    res.status(200).json({ message: "Password updated successfully." });
+  } catch (error) {
+    console.error("Error updating password:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while updating the password." });
+  }
 });
 
 // Sign out simulation (clear session/cookie)
-app.post('/customer/signout', (req, res) => {
-    // Simulate sign out
-    res.json({ message: 'Signed out successfully' });
+app.post("/customer/signout", (req, res) => {
+  // Simulate sign out
+  res.clearCookie("customer");
+  res.json({ message: "Signed out successfully" });
 });
 
 // Placeholder route for testing
-app.get('/', (req, res) => {
-    res.status(200).send("Welcome to the Root URL of the Server");
+app.get("/", (req, res) => {
+  res.status(200).send("Welcome to the Root URL of the Server");
 });
 
-
 // Post request test
-app.post('/submit', (req, res) => {
-    const userData = req.body;
-    console.log('Received user data:', userData);
-    res.status(200).send({
-        message: 'Data received successfully',
-        receivedData: userData
-    });
+app.post("/submit", (req, res) => {
+  const userData = req.body;
+  console.log("Received user data:", userData);
+  res.status(200).send({
+    message: "Data received successfully",
+    receivedData: userData,
+  });
 });
 
 // Put request test
-app.put('/update', (req, res) => {
-    const updatedData = req.body;
-    console.log('Received updated data:', updatedData);
-    res.status(200).send({
-        message: 'Data updated successfully',
-        updatedData: updatedData
-    });
+app.put("/update", (req, res) => {
+  const updatedData = req.body;
+  console.log("Received updated data:", updatedData);
+  res.status(200).send({
+    message: "Data updated successfully",
+    updatedData: updatedData,
+  });
 });
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
