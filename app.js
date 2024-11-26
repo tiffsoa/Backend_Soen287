@@ -4,46 +4,19 @@ const PORT = 3000;
 const cors = require("cors");
 const fs = require("fs");
 const bodyParser = require("body-parser");
-//const cookieParser = require("cookie-parser");
 const mysql = require("mysql");
-//const session = require("express-session");
-//const MySQLStore = require('express-mysql-session')(session);
-
-/* const sessionStore = new MySQLStore({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'service_manager_website',
-});
- */
-
-/* app.use(session({
-    secret: "a-secret-key-to-encrypt-session-data",
-    resave: false,
-    saveUninitialized: false,
-    //store: sessionStore,
-    cookie: {
-      httpOnly: true,
-      sameSite: "None",
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-    },
-  }));
-   */
 
 // Parse incoming request bodies
 app.use(bodyParser.json());
 app.use(cors({ origin: "http://127.0.0.1:5500", credentials: true }));
 app.use(express.urlencoded({ extended: true }));
 
-//cookie-parser middleware
-//app.use(cookieParser()); // Secret key for signing cookies
-
 //connect to the database
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
   password: "",
-  database: "service_manager_website", // use the name of your DB
+  database: "service_manager_website",
 });
 db.connect((err) => {
   if (err) {
@@ -52,20 +25,6 @@ db.connect((err) => {
     console.log("Connected");
   }
 });
-
-/*
-
-GIRLIE GIRLIE GIRLIE GIRLIE POP POP POP POOOOOOOOOOOOOOOOOOOOP!!!!!!!
-- need to do everything after customer invoice:
-    - getting their services from booking
-    - updating their info (password)
-    - delete account
-    - sign out
-
-- modify company info ???????? (logo name address)
-- add session 
-
-*/
 
 const getObjectByIdFromDb = (tableName, objectId) => {
   return new Promise((resolve, reject) => {
@@ -312,22 +271,6 @@ const getBookings = () => {
   });
 };
 
-//middleware function to protect services from not logged in users
-/* function ensureAuthenticated(req, res, next) {
-  if (req.cookies.customer) {
-    return next();
-  }
-  //res.redirect("/signin_c.html"); //redirect to login if not authenticated
-  res.status(401).json({ error: "Not logged in" });
-} */
-
-/* //ensure only logged in users can see services
-app.get("/services.html", ensureAuthenticated, (req, res) => {
-  res.sendFile(path.join(__dirname, "services.html"));
-}); */
-
-// Sign up page route
-
 app.post("/signup", async (req, res) => {
   try {
     const email = req.body.email;
@@ -382,11 +325,6 @@ app.post("/signin/company", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password!" });
     }
 
-    // Store company id in session
-    /* req.session.companyId = company.id;
-    console.log(req.session);
-    req.session.visited = true; */
-
     res.json({
       message: "Login successful!",
       companyId: company.id,
@@ -417,17 +355,6 @@ app.post("/signin/customer", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password!" });
     }
 
-    /*     req.session.customerId = customer.id;
-    req.session.visited = true;
-    console.log(req.session); */
-    // Store customer id in cookie
-    /* res.cookie("customerId", customer.id, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000,
-    }); */
-
     res.json({
       message: "Login successful!",
       customerEmail: customer.email,
@@ -443,12 +370,6 @@ app.post("/signin/customer", async (req, res) => {
 //admin dashboard route
 //get admin profile
 app.get("/admin/:id", async (req, res) => {
-  /* if (!req.session.companyId) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized! Please sign in first." });
-  } */
-
   const companyId = parseInt(req.params.id);
 
   try {
@@ -466,12 +387,6 @@ app.get("/admin/:id", async (req, res) => {
 });
 
 app.put("/admin/:id", async (req, res) => {
-  /* if (!req.session.companyId) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized! Please sign in first." });
-  } */
-
   const companyId = parseInt(req.params.id);
 
   const { name, logo, address, description } = req.body;
@@ -489,25 +404,6 @@ app.put("/admin/:id", async (req, res) => {
     res.status(500).json({ error });
   }
 });
-
-//route for company info from cookie
-/* app.get("/session/admin", (req, res) => {
-  if (req.cookies.companyId) {
-    res.json({ companyId: req.cookies.companyId });
-  } else {
-    res.status(401).json({ error: "Not logged in" });
-  }
-}); */
-
-//route for customer info from cookie
-/* app.get("/session/customer", (req, res) => {
-  console.log("cookies", req.cookies);
-  if (req.cookies.customerId) {
-    res.json({ customerId: req.cookies.customerId });
-  } else {
-    res.status(401).json({ error: "Not logged in" });
-  }
-}); */
 
 //bookings route
 app.post("/bookings/:id", async (req, res) => {
@@ -560,12 +456,6 @@ app.post("/bookings/:id", async (req, res) => {
 
 // Get all services (only those with matching company id) !!!!!!!!!!
 app.get("/services", async (req, res) => {
-  /*   console.log("services", req.session);
-  if (!req.session.customerId) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized: Please sign in first." });
-  } */
   const services = await getServices();
   res.json(services);
 });
@@ -638,13 +528,7 @@ app.delete("/services/:id", async (req, res) => {
 app.get("/customer/services/:id", async (req, res) => {
   //take customer email from booking and verify if it matches the current customer's email
   //if it does then get the service id and check in services to show which service it is
-  /* if (!req.session.customerId) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized! Please sign in first." });
-  } */
 
-  //const customerId = req.session.customerId;
   const customerId = parseInt(req.params.id);
 
   try {
@@ -679,13 +563,6 @@ app.get("/customer/services/:id", async (req, res) => {
 
 //get invoices for a customer
 app.get("/customer/invoices/:id", async (req, res) => {
-  /* if (!req.session.customerId) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized! Please sign in first." });
-  } */
-
-  //const customerId = req.session.customerId;
   const customerId = parseInt(req.params.id);
 
   try {
@@ -705,18 +582,8 @@ app.get("/customer/invoices/:id", async (req, res) => {
   }
 });
 
-////////STILL NEED TO VERIFY IF INVOICES WORK?????????
-
 //add invoice for a customer
 app.post("/customer/invoices", async (req, res) => {
-  /* if (!req.session.customerId) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized! Please sign in first." });
-  }
-
-  const customerId = req.session.customerId; */
-
   const { serviceId, amount, status, dueDate } = req.body;
 
   if (!serviceId || !amount || !status || !dueDate) {
@@ -744,12 +611,6 @@ app.post("/customer/invoices", async (req, res) => {
 
 // Update customer details (e.g., name, email)
 app.put("/customer", async (req, res) => {
-  /* if (!req.session.customerId) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized! Please sign in first." });
-  } */
-
   const customerId = req.session.customerId;
 
   const { name, email, password } = req.body;
@@ -769,12 +630,6 @@ app.put("/customer", async (req, res) => {
 
 //delete account
 app.delete("/customer/:id", async (req, res) => {
-  /*   if (!req.session.customerId) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized! Please sign in first." });
-  } */
-
   const customerId = parseInt(req.params.id);
 
   await deleteCustomer(customerId)
@@ -853,17 +708,6 @@ app.post("/update-password/:id", async (req, res) => {
       .json({ error: "An error occurred while updating the password." });
   }
 });
-
-// Sign out simulation (clear session/cookie)
-/* app.post("/customer/signout", (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ message: "Failed to log out" });
-    }
-
-    res.json({ message: "Logged out successfully" });
-  });
-}); */
 
 // Placeholder route for testing
 app.get("/", (req, res) => {
