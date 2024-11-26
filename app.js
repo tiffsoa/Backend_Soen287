@@ -6,9 +6,29 @@ const fs = require("fs");
 const bodyParser = require("body-parser");
 //const cookieParser = require("cookie-parser");
 const mysql = require("mysql");
-const session = require("express-session");
+//const session = require("express-session");
+//const MySQLStore = require('express-mysql-session')(session);
 
-app.use(session({ secret: "a-secret-key-to-encrypt-session-data" }));
+/* const sessionStore = new MySQLStore({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'service_manager_website',
+});
+ */
+
+/* app.use(session({
+    secret: "a-secret-key-to-encrypt-session-data",
+    resave: false,
+    saveUninitialized: false,
+    //store: sessionStore,
+    cookie: {
+      httpOnly: true,
+      sameSite: "None",
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    },
+  }));
+   */
 
 // Parse incoming request bodies
 app.use(bodyParser.json());
@@ -274,8 +294,10 @@ const addBooking = (booking) => {
   return new Promise((resolve, reject) => {
     let sql = "INSERT INTO bookings SET ?";
     db.query(sql, booking, (err, result) => {
-      if (err) reject("Could not insert new booking!");
-      else resolve(booking);
+      if (err) {
+        console.error("Error:", err);
+        reject("Could not insert new booking!");
+      } else resolve(booking);
     });
   });
 };
@@ -333,6 +355,15 @@ app.post("/signup", async (req, res) => {
   }
 });
 
+app.get("/customers", async (req, res) => {
+  try {
+    const customers = await getCustomers();
+    res.json(customers);
+  } catch (error) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.post("/signin/company", async (req, res) => {
   const { email, password } = req.body;
 
@@ -352,11 +383,14 @@ app.post("/signin/company", async (req, res) => {
     }
 
     // Store company id in session
-    req.session.companyId = company.id;
+    /* req.session.companyId = company.id;
+    console.log(req.session);
+    req.session.visited = true; */
 
     res.json({
       message: "Login successful!",
       companyId: company.id,
+      userRole: "company",
     });
   } catch (err) {
     console.log("Error:", err); // Handling the error gracefully
@@ -383,6 +417,9 @@ app.post("/signin/customer", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password!" });
     }
 
+    /*     req.session.customerId = customer.id;
+    req.session.visited = true;
+    console.log(req.session); */
     // Store customer id in cookie
     /* res.cookie("customerId", customer.id, {
       httpOnly: true,
@@ -393,7 +430,9 @@ app.post("/signin/customer", async (req, res) => {
 
     res.json({
       message: "Login successful!",
+      customerEmail: customer.email,
       customerId: customer.id,
+      userRole: "customer",
     });
   } catch (err) {
     console.log("Error:", err); // Handling the error gracefully
@@ -404,7 +443,14 @@ app.post("/signin/customer", async (req, res) => {
 //admin dashboard route
 //get admin profile
 app.get("/admin/:id", async (req, res) => {
-  companyId = parseInt(req.params.id);
+  /* if (!req.session.companyId) {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized! Please sign in first." });
+  } */
+
+  const companyId = parseInt(req.params.id);
+
   try {
     //get company by id
     const result = await getObjectByIdFromDb("companies", companyId);
@@ -420,6 +466,12 @@ app.get("/admin/:id", async (req, res) => {
 });
 
 app.put("/admin/:id", async (req, res) => {
+  /* if (!req.session.companyId) {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized! Please sign in first." });
+  } */
+
   const companyId = parseInt(req.params.id);
 
   const { name, logo, address, description } = req.body;
@@ -458,7 +510,8 @@ app.put("/admin/:id", async (req, res) => {
 }); */
 
 //bookings route
-app.post("/bookings", async (req, res) => {
+app.post("/bookings/:id", async (req, res) => {
+  const serviceId = parseInt(req.params.id);
   try {
     const {
       email,
@@ -482,9 +535,6 @@ app.post("/bookings", async (req, res) => {
     ) {
       return res.status(400).json({ error: "All fields are required!" });
     }
-
-    // Defaulting to serviceId 1 for now
-    const serviceId = req.body.serviceId || 1;
 
     const newBooking = {
       email,
@@ -510,6 +560,12 @@ app.post("/bookings", async (req, res) => {
 
 // Get all services (only those with matching company id) !!!!!!!!!!
 app.get("/services", async (req, res) => {
+  /*   console.log("services", req.session);
+  if (!req.session.customerId) {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized: Please sign in first." });
+  } */
   const services = await getServices();
   res.json(services);
 });
@@ -579,13 +635,20 @@ app.delete("/services/:id", async (req, res) => {
 
 //get all services for a customer dashboard (from booking)
 //get the service id from booking then use service id to show service from services
-app.get("/customer/:id/services", async (req, res) => {
+app.get("/customer/services/:id", async (req, res) => {
   //take customer email from booking and verify if it matches the current customer's email
   //if it does then get the service id and check in services to show which service it is
-  const customerID = parseInt(req.params.id);
+  /* if (!req.session.customerId) {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized! Please sign in first." });
+  } */
+
+  //const customerId = req.session.customerId;
+  const customerId = parseInt(req.params.id);
 
   try {
-    const customer = await getObjectByIdFromDb("customers", customerID);
+    const customer = await getObjectByIdFromDb("customers", customerId);
     const customerEmail = customer.email;
 
     const bookings = await getBookings();
@@ -615,7 +678,14 @@ app.get("/customer/:id/services", async (req, res) => {
 });
 
 //get invoices for a customer
-app.get("/customer/:id/invoices", async (req, res) => {
+app.get("/customer/invoices/:id", async (req, res) => {
+  /* if (!req.session.customerId) {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized! Please sign in first." });
+  } */
+
+  //const customerId = req.session.customerId;
   const customerId = parseInt(req.params.id);
 
   try {
@@ -638,8 +708,15 @@ app.get("/customer/:id/invoices", async (req, res) => {
 ////////STILL NEED TO VERIFY IF INVOICES WORK?????????
 
 //add invoice for a customer
-app.post("/customer/:id/invoices", async (req, res) => {
-  const customerId = parseInt(req.params.id);
+app.post("/customer/invoices", async (req, res) => {
+  /* if (!req.session.customerId) {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized! Please sign in first." });
+  }
+
+  const customerId = req.session.customerId; */
+
   const { serviceId, amount, status, dueDate } = req.body;
 
   if (!serviceId || !amount || !status || !dueDate) {
@@ -666,8 +743,14 @@ app.post("/customer/:id/invoices", async (req, res) => {
 });
 
 // Update customer details (e.g., name, email)
-app.put("/customer/:id", async (req, res) => {
-  const customerId = parseInt(req.params.id);
+app.put("/customer", async (req, res) => {
+  /* if (!req.session.customerId) {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized! Please sign in first." });
+  } */
+
+  const customerId = req.session.customerId;
 
   const { name, email, password } = req.body;
 
@@ -686,7 +769,13 @@ app.put("/customer/:id", async (req, res) => {
 
 //delete account
 app.delete("/customer/:id", async (req, res) => {
-  const customerId = req.params.id;
+  /*   if (!req.session.customerId) {
+    return res
+      .status(401)
+      .json({ message: "Unauthorized! Please sign in first." });
+  } */
+
+  const customerId = parseInt(req.params.id);
 
   await deleteCustomer(customerId)
     .then((message) => {
@@ -698,12 +787,12 @@ app.delete("/customer/:id", async (req, res) => {
 });
 
 // Password Update Route
-app.post("/update-password", async (req, res) => {
-  const { customerId, currentPassword, newPassword, confirmPassword } =
-    req.body;
+app.post("/update-password/:id", async (req, res) => {
+  const customerId = parseInt(req.params.id);
+  const { currentPassword, newPassword, confirmPassword } = req.body;
 
   // Validate input fields
-  if (!customerId || !currentPassword || !newPassword || !confirmPassword) {
+  if (!currentPassword || !newPassword || !confirmPassword) {
     return res.status(400).json({ error: "All fields are required." });
   }
 
@@ -766,11 +855,15 @@ app.post("/update-password", async (req, res) => {
 });
 
 // Sign out simulation (clear session/cookie)
-app.post("/customer/signout", (req, res) => {
-  // Simulate sign out
-  res.clearCookie("customer");
-  res.json({ message: "Signed out successfully" });
-});
+/* app.post("/customer/signout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ message: "Failed to log out" });
+    }
+
+    res.json({ message: "Logged out successfully" });
+  });
+}); */
 
 // Placeholder route for testing
 app.get("/", (req, res) => {
