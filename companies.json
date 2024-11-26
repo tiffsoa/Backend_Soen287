@@ -1,5 +1,0 @@
-[
-    { "id": 1, "name": "AllHomia", "email": "allhomia@gmail.com", "address": "123 Dorion Street, Montreal QC", "password": "Allhomia123*", "logo": "logo" },
-    { "id": 2, "name": "FixItPro", "email": "fixitpro@gmail.com", "address": "456 Crescent Avenue, Montreal QC", "password": "Fixit123!", "logo": "fixitpro_logo" },
-    { "id": 3, "name": "EcoCleaners", "email": "ecocleaners@gmail.com", "address": "789 Greenway Boulevard, Montreal QC", "password": "EcoClean123$", "logo": "ecocleaners_logo" }
-]
